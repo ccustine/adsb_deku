@@ -10,14 +10,15 @@ use hexlit::hex;
 use rsadsb_common::Airplanes;
 
 extern crate alloc;
-extern crate wee_alloc;
 
 #[no_mangle]
 #[allow(non_snake_case)]
 fn _Unwind_Resume() {}
 
+use embedded_alloc::LlffHeap as Heap;
+
 #[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+static HEAP: Heap = Heap::empty();
 
 // Need to provide a tiny `panic` implementation for `#![no_std]`.
 // This translates into an `unreachable` instruction that will

@@ -494,7 +494,7 @@ pub enum DF {
     /// | 31 | ACAS/TCAS(Resolution)  |
     #[deku(id_pat = "24..=31")]
     ModeSExtendedSquitter {
-        #[deku(bits = 5)]
+        /// id
         df: u8,
 
         /// CA: Capability
@@ -515,8 +515,6 @@ pub enum DF {
 #[derive(Debug, PartialEq, Eq, DekuRead, Default, Copy, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Altitude {
-    #[deku(bits = "5")]
-    pub tc: u8,
     pub ss: SurveillanceStatus,
     #[deku(bits = "1")]
     pub saf_or_imf: u8,
@@ -726,7 +724,7 @@ pub enum DownlinkRequest {
     CommBBroadcastMsg2,
 
     #[deku(id_pat = "_")]
-    Unknown(#[deku(bits = 5)] u8),
+    Unknown(u8),
 }
 
 /// Uplink / Downlink
@@ -842,7 +840,7 @@ pub enum Capability {
     AG_UNCERTAIN,
 
     #[deku(id_pat = "0x01..=0x03")]
-    Reserved(#[deku(bits = 3)] u8),
+    Reserved(u8),
 
     /// Level 2 or above transponder, on ground
     #[deku(id = 0x04)]

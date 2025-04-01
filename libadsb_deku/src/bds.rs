@@ -3,6 +3,8 @@
 use alloc::format;
 use alloc::string::String;
 #[cfg(feature = "alloc")]
+use alloc::vec;
+#[cfg(feature = "alloc")]
 use core::{
     clone::Clone, cmp::PartialEq, fmt, fmt::Debug, prelude::rust_2021::derive, result::Result::Ok,
     writeln,
@@ -29,7 +31,7 @@ pub enum BDS {
     AircraftIdentification(#[deku(reader = "aircraft_identification_read(deku::reader)")] String),
 
     #[deku(id_pat = "_")]
-    Unknown((u8, [u8; 6])),
+    Unknown { id: u8, unknown: [u8; 6] },
 }
 
 impl fmt::Display for BDS {
@@ -45,7 +47,7 @@ impl fmt::Display for BDS {
             Self::DataLinkCapability(_) => {
                 writeln!(f, "Comm-B format: BDS1,0 Datalink capabilities")?;
             }
-            Self::Unknown(_) => {
+            Self::Unknown { .. } => {
                 writeln!(f, "Comm-B format: unknown format")?;
             }
         }
