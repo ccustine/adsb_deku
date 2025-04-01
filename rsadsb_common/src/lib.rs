@@ -125,12 +125,12 @@ impl Airplanes {
         match frame.df {
             DF::ADSB(ref adsb) => {
                 airplane_added = match &adsb.me {
-                    ME::AircraftIdentification(identification) => {
+                    ME::AircraftIdentification { id, identification } => {
                         self.add_identification(adsb.icao, identification)
                     }
                     ME::AirborneVelocity(vel) => self.add_airborne_velocity(adsb.icao, vel),
-                    ME::AirbornePositionGNSSAltitude(altitude)
-                    | ME::AirbornePositionBaroAltitude(altitude) => {
+                    ME::AirbornePositionGNSSAltitude { id, altitude }
+                    | ME::AirbornePositionBaroAltitude { id, altitude } => {
                         self.update_position(adsb.icao, altitude, lat_long, max_rang)
                     }
                     _ => Added::No,
@@ -146,12 +146,12 @@ impl Airplanes {
             DF::TisB { cf, pi } => {
                 info!("TISB: {cf:?}, {pi:?}");
                 airplane_added = match cf.me {
-                    ME::AircraftIdentification(identification) => {
+                    ME::AircraftIdentification { id, identification } => {
                         self.add_identification(pi, &identification)
                     }
                     ME::AirborneVelocity(vel) => self.add_airborne_velocity(pi, &vel),
-                    ME::AirbornePositionGNSSAltitude(altitude)
-                    | ME::AirbornePositionBaroAltitude(altitude) => {
+                    ME::AirbornePositionGNSSAltitude { id, altitude }
+                    | ME::AirbornePositionBaroAltitude { id, altitude } => {
                         self.update_position(pi, &altitude, lat_long, max_rang)
                     }
                     _ => Added::No,

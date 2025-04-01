@@ -10,11 +10,11 @@ fn testing01() {
     let bytes = hex!("8D40621D58C382D690C8AC2863A7");
     let frame = Frame::from_bytes(&bytes);
     if let DF::ADSB(adsb) = frame.unwrap().df {
-        if let ME::AirbornePositionBaroAltitude(me) = adsb.me {
-            assert_eq!(me.alt, Some(38000));
-            assert_eq!(me.lat_cpr, 93000);
-            assert_eq!(me.lon_cpr, 51372);
-            assert_eq!(me.odd_flag, CPRFormat::Even);
+        if let ME::AirbornePositionBaroAltitude { id, altitude } = adsb.me {
+            assert_eq!(altitude.alt, Some(38000));
+            assert_eq!(altitude.lat_cpr, 93000);
+            assert_eq!(altitude.lon_cpr, 51372);
+            assert_eq!(altitude.odd_flag, CPRFormat::Even);
             return;
         }
     }
@@ -753,11 +753,13 @@ fn fix_issue_unknown() {
     );
 }
 
-#[test]
+#[test_log::test]
 fn fix_issue_13() {
     // 1
+    // Frame { df: ADSB(ADSB { capability: AG_AIRBORNE, icao: ICAO([ab, 92, a2]), me: AirbornePositionBaroAltitude { id: 0b, altitude: Altitude { ss: NoCondition, saf_or_imf: 01, alt: Some(2968), t: false, odd_flag: Odd, lat_cpr: c910, lon_cpr: 98d2 } }, pi: ICAO([d8, fe, 84]) }), crc: 00 }
     let bytes = hex!("8dab92a2593e0664204c69d8fe84");
     let frame = Frame::from_bytes(&bytes).unwrap();
+    println!("{frame:02x?}");
     let resulting_string = format!("{frame}");
     assert_eq!(
         r#" Extended Squitter Airborne position (barometric altitude)

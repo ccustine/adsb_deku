@@ -60,7 +60,7 @@ impl ADSB {
 #[deku(id_type = "u8", bits = "5")]
 pub enum ME {
     #[deku(id_pat = "9..=18")]
-    AirbornePositionBaroAltitude(Altitude),
+    AirbornePositionBaroAltitude { id: u8, altitude: Altitude },
 
     #[deku(id = "19")]
     AirborneVelocity(AirborneVelocity),
@@ -69,22 +69,26 @@ pub enum ME {
     NoPosition([u8; 6]),
 
     #[deku(id_pat = "1..=4")]
-    AircraftIdentification(Identification),
+    AircraftIdentification {
+        id: u8,
+        #[deku(ctx = "*id")]
+        identification: Identification,
+    },
 
     #[deku(id_pat = "5..=8")]
-    SurfacePosition(SurfacePosition),
+    SurfacePosition { id: u8, surface: SurfacePosition },
 
     #[deku(id_pat = "20..=22")]
-    AirbornePositionGNSSAltitude(Altitude),
+    AirbornePositionGNSSAltitude { id: u8, altitude: Altitude },
 
     #[deku(id = "23")]
     Reserved0([u8; 6]),
 
-    #[deku(id_pat = "24")]
+    #[deku(id = "24")]
     SurfaceSystemStatus([u8; 6]),
 
     #[deku(id_pat = "25..=27")]
-    Reserved1([u8; 6]),
+    Reserved1 { id: u8, slice: [u8; 5] },
 
     #[deku(id = "28")]
     AircraftStatus(AircraftStatus),
@@ -119,18 +123,18 @@ impl ME {
                 writeln!(f, "  Address:       {icao} {address_type}")?;
                 writeln!(f, "  Air/Ground:    {capability}")?;
             }
-            ME::AircraftIdentification(Identification { tc, ca, cn }) => {
+            ME::AircraftIdentification { id, identification: Identification { tc, ca, cn } } => {
                 writeln!(f, " Extended Squitter{transponder}Aircraft identification and category")?;
                 writeln!(f, "  Address:       {icao} {address_type}")?;
                 writeln!(f, "  Air/Ground:    {capability}")?;
                 writeln!(f, "  Ident:         {cn}")?;
                 writeln!(f, "  Category:      {tc}{ca}")?;
             }
-            ME::SurfacePosition(..) => {
+            ME::SurfacePosition { .. } => {
                 writeln!(f, " Extended Squitter{transponder}Surface position")?;
                 writeln!(f, "  Address:       {icao} {address_type}")?;
             }
-            ME::AirbornePositionBaroAltitude(altitude) => {
+            ME::AirbornePositionBaroAltitude { id: tc, altitude } => {
                 writeln!(
                     f,
                     " Extended Squitter{transponder}Airborne position (barometric altitude)"
@@ -193,12 +197,12 @@ impl ME {
                     writeln!(f, "  Address:       {icao} {address_type}")?;
                 }
             },
-            ME::AirbornePositionGNSSAltitude(altitude) => {
+            ME::AirbornePositionGNSSAltitude { id, altitude } => {
                 writeln!(f, " Extended Squitter{transponder}Airborne position (GNSS altitude)",)?;
                 writeln!(f, "  Address:      {icao} {address_type}")?;
                 write!(f, "{altitude}")?;
             }
-            ME::Reserved0(_) | ME::Reserved1(_) => {
+            ME::Reserved0(_) | ME::Reserved1 { .. } => {
                 writeln!(f, " Extended Squitter{transponder}Unknown")?;
                 writeln!(f, "  Address:       {icao} {address_type}")?;
                 writeln!(f, "  Air/Ground:    {capability}")?;
@@ -324,7 +328,7 @@ pub enum OperationStatus {
     Surface(OperationStatusSurface),
 
     #[deku(id_pat = "2..=7")]
-    Reserved(#[deku(bits = "5")] u8, [u8; 5]),
+    Reserved(u8, [u8; 4]),
 }
 
 /// [`ME::AircraftOperationStatus`] && [`OperationStatus`] == 0
@@ -712,7 +716,7 @@ pub enum AircraftStatusType {
     #[deku(id = "2")]
     ACASRaBroadcast,
     #[deku(id_pat = "_")]
-    Reserved,
+    Reserved(u8),
 }
 
 #[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone)]
@@ -762,7 +766,9 @@ pub struct OperationCodeSurface {
 
 #[derive(Debug, PartialEq, Eq, DekuRead, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[deku(ctx = "id: u8")]
 pub struct Identification {
+    #[deku(reader = "TypeCoding::custom_read(id)", writer = "TypeCoding::custom_write()")]
     pub tc: TypeCoding,
 
     #[deku(bits = "3")]
@@ -775,12 +781,26 @@ pub struct Identification {
 
 #[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[deku(id_type = "u8", bits = "5")]
+#[deku(id_type = "u8", bits = "8")]
 pub enum TypeCoding {
     D = 1,
     C = 2,
     B = 3,
     A = 4,
+}
+
+impl TypeCoding {
+    fn custom_read(id: u8) -> Result<TypeCoding, DekuError> {
+        let (_, res) = Self::from_bytes((&[id], 0))?;
+        Ok(res)
+    }
+
+    fn custom_write<W: std::io::Write + std::io::Seek>(
+        _writer: &mut Writer<W>,
+        _: (),
+    ) -> Result<(), DekuError> {
+        Ok(())
+    }
 }
 
 impl fmt::Display for TypeCoding {
@@ -1021,7 +1041,7 @@ impl fmt::Display for VerticalRateSource {
 #[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SurfacePosition {
-    #[deku(bits = "7")]
+    #[deku(bits = "2")]
     pub mov: u8,
     pub s: StatusForGroundTrack,
     #[deku(bits = "7")]
