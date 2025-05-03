@@ -5,6 +5,7 @@ use ratatui::widgets::canvas::{Canvas, Line, Points};
 use ratatui::widgets::Block;
 use rsadsb_common::{AirplaneDetails, Airplanes};
 
+use crate::range_circles::draw_range_circles;
 use crate::{draw_lines, draw_locations, Settings, DEFAULT_PRECISION, MAX_PLOT_HIGH, MAX_PLOT_LOW};
 
 /// Render Map tab for tui display
@@ -23,6 +24,9 @@ pub fn build_tab_map(
 
             // draw locations
             draw_locations(ctx, settings);
+
+            // draw range circles
+            draw_range_circles(ctx, settings);
 
             // draw ADSB tab airplanes
             for (key, value) in adsb_airplanes.iter() {

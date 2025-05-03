@@ -6,6 +6,7 @@ use ratatui::widgets::canvas::{Canvas, Points};
 use ratatui::widgets::Block;
 use rsadsb_common::Airplanes;
 
+use crate::range_circles::draw_range_circles;
 use crate::{draw_locations, Settings, MAX_PLOT_HIGH, MAX_PLOT_LOW};
 
 /// Accuracy of latitude/longitude for Coverage is affected by this variable.
@@ -75,6 +76,9 @@ pub fn build_tab_coverage(
         .paint(|ctx| {
             // draw locations
             draw_locations(ctx, settings);
+
+            // draw range circles
+            draw_range_circles(ctx, settings);
 
             // draw ADSB tab airplanes
             for (lat, long, seen_number, _) in coverage_airplanes.iter() {

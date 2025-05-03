@@ -20,6 +20,8 @@ use crate::stats::{build_tab_stats, Stats};
 mod help;
 use crate::help::build_tab_help;
 
+mod range_circles;
+
 mod airplanes;
 use std::io::{self, BufRead, BufReader, BufWriter};
 use std::net::{SocketAddr, TcpStream};
@@ -556,6 +558,7 @@ fn handle_keyevent(
         (KeyCode::Char('h'), _) => settings.opts.disable_heading ^= true,
         (KeyCode::Char('t'), _) => settings.opts.disable_track ^= true,
         (KeyCode::Char('n'), _) => settings.opts.disable_callsign ^= true,
+        (KeyCode::Char('r'), _) => settings.opts.disable_range_circles ^= true,
         // Map and Coverage
         (KeyCode::Char('-'), Tab::Map | Tab::Coverage) => settings.scale_increase(),
         (KeyCode::Char('+'), Tab::Map | Tab::Coverage) => settings.scale_decrease(),
