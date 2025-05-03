@@ -20,6 +20,8 @@ use crate::stats::{build_tab_stats, Stats};
 mod help;
 use crate::help::build_tab_help;
 
+mod range_circles;
+
 mod airplanes;
 use std::io::{self, BufRead, BufReader, BufWriter};
 use std::net::{SocketAddr, TcpStream};
