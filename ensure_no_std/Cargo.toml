@@ -6,6 +6,6 @@ edition = "2021"
 
 [dependencies]
 hexlit = "0.5.0"
-wee_alloc = "0.4"
+embedded-alloc = "0.6.0"
 adsb_deku = { path = "../libadsb_deku", default-features = false, features = ["alloc"] }
 rsadsb_common = { path = "../rsadsb_common", default-features = false, features = ["alloc"] }

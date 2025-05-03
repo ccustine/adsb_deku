@@ -20,5 +20,5 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly
-          target: thumbv7em-none-eabihf
-      - run: cargo build --manifest-path ensure_no_std/Cargo.toml
+          targets: thumbv7em-none-eabihf
+      - run: cargo build --manifest-path ensure_no_std/Cargo.toml --target thumbv7em-none-eabihf

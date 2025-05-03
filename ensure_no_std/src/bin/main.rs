@@ -10,20 +10,20 @@ use hexlit::hex;
 use rsadsb_common::Airplanes;
 
 extern crate alloc;
-extern crate wee_alloc;
 
 #[no_mangle]
 #[allow(non_snake_case)]
 fn _Unwind_Resume() {}
 
+use embedded_alloc::LlffHeap as Heap;
+
 #[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+static HEAP: Heap = Heap::empty();
 
 // Need to provide a tiny `panic` implementation for `#![no_std]`.
 // This translates into an `unreachable` instruction that will
 // raise a `trap` the WebAssembly execution if we panic at runtime.
 #[panic_handler]
-#[no_mangle]
 unsafe fn panic(_info: &::core::panic::PanicInfo) -> ! {
     ::core::intrinsics::abort();
 }
@@ -31,14 +31,12 @@ unsafe fn panic(_info: &::core::panic::PanicInfo) -> ! {
 // Need to provide an allocation error handler which just aborts
 // the execution with trap.
 #[alloc_error_handler]
-#[no_mangle]
 unsafe fn oom(_: ::core::alloc::Layout) -> ! {
     ::core::intrinsics::abort();
 }
 
 // Needed for non-wasm targets.
 #[lang = "eh_personality"]
-#[no_mangle]
 extern "C" fn eh_personality() {}
 
 #[no_mangle]

@@ -12,12 +12,12 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["std"]
+default = ["std", "alloc"]
 std = ["deku/std", "alloc"]
 alloc = ["deku/alloc"]
 
 [dependencies]
-deku = { version = "0.18.1", default-features = false, features = ["bits"] }
+deku = { version = "0.19.0", default-features = false, features = ["bits"] }
 serde = { version = "1.0", features = ["derive"], optional = true }
 libm = "0.2.8"
 
