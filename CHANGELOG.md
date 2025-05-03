@@ -6,6 +6,7 @@ Libraries are released without a new release date within this changelog,
 since this pertains to binary (package) releases.
 
 ## [Package Unreleased]
+## [2025-05-03]
 ### radar / 1090 v0.8.0
 - radar: Add circular range indication ([#346](https://github.com/rsadsb/adsb_deku/pull/346))
 Customize with `----range-circles`, and `--disable-range-circles`. `r` hotkey while in app.
