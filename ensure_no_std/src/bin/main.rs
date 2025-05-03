@@ -24,7 +24,6 @@ static HEAP: Heap = Heap::empty();
 // This translates into an `unreachable` instruction that will
 // raise a `trap` the WebAssembly execution if we panic at runtime.
 #[panic_handler]
-#[no_mangle]
 unsafe fn panic(_info: &::core::panic::PanicInfo) -> ! {
     ::core::intrinsics::abort();
 }
@@ -32,14 +31,12 @@ unsafe fn panic(_info: &::core::panic::PanicInfo) -> ! {
 // Need to provide an allocation error handler which just aborts
 // the execution with trap.
 #[alloc_error_handler]
-#[no_mangle]
 unsafe fn oom(_: ::core::alloc::Layout) -> ! {
     ::core::intrinsics::abort();
 }
 
 // Needed for non-wasm targets.
 #[lang = "eh_personality"]
-#[no_mangle]
 extern "C" fn eh_personality() {}
 
 #[no_mangle]
