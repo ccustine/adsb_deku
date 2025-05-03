@@ -1,7 +1,7 @@
+use clap::Parser;
 use std::net::Ipv4Addr;
 use std::num::ParseFloatError;
 use std::str::FromStr;
-use clap::Parser;
 
 /// Parsing struct for the --locations clap parameter
 #[derive(Debug, Clone, PartialEq)]
@@ -32,7 +32,8 @@ impl FromStr for RangeCircles {
     type Err = ParseFloatError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let ranges: Result<Vec<f64>, ParseFloatError> = s.split(',').map(|r| r.parse::<f64>()).collect();
+        let ranges: Result<Vec<f64>, ParseFloatError> =
+            s.split(',').map(|r| r.parse::<f64>()).collect();
         Ok(Self(ranges?))
     }
 }
@@ -140,12 +141,12 @@ pub struct Opts {
     /// Control the max range of the receiver in km
     #[arg(long, default_value = "500")]
     pub max_range: f64,
-    
+
     /// Comma-separated list of range circles to display (in km)
     /// Example: --range-circles=100,200,300,400
     #[arg(long, default_value = "100,200,300,400")]
     pub range_circles: RangeCircles,
-    
+
     /// Disable display of range circles on Map and Coverage
     #[arg(long)]
     pub disable_range_circles: bool,

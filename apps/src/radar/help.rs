@@ -79,7 +79,7 @@ pub fn build_tab_help(f: &mut ratatui::Frame, chunks: &[Rect]) {
         .column_spacing(1)
         .block(Block::bordered().title("Key Bindings - Airplanes"));
     f.render_widget(table, vertical_chunks[3]);
-    
+
     // Range circles help section
     let rows = [
         Row::new(vec!["--range-circles", "Set range circles (km) as comma-separated values"]),
