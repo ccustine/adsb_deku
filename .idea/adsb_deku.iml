@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="EMPTY_MODULE" version="4">
+  <component name="NewModuleRootManager">
+    <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/apps/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/ensure_no_std/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libadsb_deku/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/libadsb_deku/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libadsb_deku/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/rsadsb_common/src" isTestSource="false" />
+      <excludeFolder url="file://$MODULE_DIR$/ensure_no_std/target" />
+      <excludeFolder url="file://$MODULE_DIR$/libadsb_deku/fuzz/target" />
+      <excludeFolder url="file://$MODULE_DIR$/target" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+  </component>
+</module>

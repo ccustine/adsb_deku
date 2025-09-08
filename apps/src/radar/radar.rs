@@ -23,6 +23,10 @@ use crate::help::build_tab_help;
 mod range_circles;
 
 mod airplanes;
+
+// Include BEAST parser from parent directory
+#[path = "../beast.rs"]
+mod beast;
 use std::io::{self, BufRead, BufReader, BufWriter};
 use std::net::{SocketAddr, TcpStream};
 use std::sync::{Arc, Mutex};
@@ -53,9 +57,30 @@ use tracing_subscriber::EnvFilter;
 
 use crate::airplanes::build_tab_airplanes;
 
+/// Guard struct to ensure terminal cleanup happens even on early errors
+struct CleanupGuard;
+
+impl CleanupGuard {
+    fn new() -> Self {
+        Self
+    }
+}
+
+impl Drop for CleanupGuard {
+    fn drop(&mut self) {
+        // Best effort cleanup - ignore errors since we're already in an error state
+        let _ = crossterm::terminal::disable_raw_mode();
+        let _ = crossterm::execute!(
+            io::stdout(),
+            crossterm::terminal::LeaveAlternateScreen,
+            crossterm::event::DisableMouseCapture
+        );
+    }
+}
+
 /// Amount of zoom out from your original lat/long position
 const MAX_PLOT_HIGH: f64 = 400.0;
-const MAX_PLOT_LOW: f64 = MAX_PLOT_HIGH * -1.0;
+const MAX_PLOT_LOW: f64 = -MAX_PLOT_HIGH;
 
 mod scale {
     /// Diff between scale changes
@@ -168,7 +193,7 @@ impl Settings {
         let (local_x, local_y) = self.local_lat_lon();
         let (x, y) = self.to_mercator(latitude, longitude);
         let (x, y) = (x - local_x, y - local_y);
-        (x, y * -1.0)
+        (x, -y)
     }
 
     /// Calculate mercator for local lat/long
@@ -272,13 +297,21 @@ fn main() -> Result<()> {
     let mut coverage_airplanes: Vec<(f64, f64, u32, ICAO)> = Vec::new();
     let mut adsb_airplanes = Airplanes::new();
 
-    // setup tui params
+    // setup tui params with proper cleanup on failure
     let mut stdout = io::stdout();
-    stdout.execute(EnableMouseCapture).unwrap();
+    stdout.execute(EnableMouseCapture)
+        .context("Failed to enable mouse capture")?;
+    
+    // Set up cleanup handler to restore terminal state on any failure
+    let _cleanup_guard = CleanupGuard::new();
+    
     let mut backend = CrosstermBackend::new(stdout);
-    backend.clear().unwrap();
-    let mut terminal = Terminal::new(backend).unwrap();
-    enable_raw_mode().unwrap();
+    backend.clear()
+        .context("Failed to clear terminal")?;
+    let mut terminal = Terminal::new(backend)
+        .context("Failed to create terminal")?;
+    enable_raw_mode()
+        .context("Failed to enable raw mode - ensure you're running in a proper terminal (not in an IDE integrated terminal, SSH session without proper TTY, or background process)")?;
 
     // setup tui variables
     let mut airplanes_state = TableState::default();
@@ -289,7 +322,7 @@ fn main() -> Result<()> {
 
     // Setup non-blocking TcpStream, display a tui display saying as such and setup the quit
     // if the user wants to quit
-    let socket = SocketAddr::from((opts.host, opts.port));
+    let socket = SocketAddr::from((opts.host, opts.get_port()));
     let mut tcp_reader = match init_tcp_reader(&mut terminal, &mut settings, socket)? {
         Some(tcp_reader) => tcp_reader,
         None => return Ok(()),
@@ -320,6 +353,13 @@ fn main() -> Result<()> {
     }
 
     let mut stats = Stats::default();
+    
+    // Initialize BEAST parser if in BEAST mode
+    let mut beast_parser = if settings.opts.beast_mode {
+        Some(beast::BeastParser::new())
+    } else {
+        None
+    };
 
     // Startup main loop
     info!("tui setup");
@@ -356,50 +396,107 @@ fn main() -> Result<()> {
             }
         }
 
-        if let Ok(len) = tcp_reader.read_line(&mut input) {
-            // a length of 0 would indicate a broken pipe/input, quit program
-            if len == 0 {
-                settings.quit = Some(QuitReason::TcpDisconnect);
-                continue;
-            }
-
-            // convert from string hex -> bytes
-            let hex = &mut input.to_string()[1..len - 2].to_string();
-            debug!("bytes: {hex}");
-            let bytes = if let Ok(bytes) = hex::decode(hex) {
-                bytes
-            } else {
-                continue;
-            };
-
-            // check for all 0's
-            if bytes.iter().all(|&b| b == 0) {
-                continue;
-            }
-
-            // decode
-            // first check if the option is selected that limits the parsing by first checking the
-            // first 5 bits if they are the known adsb header DF field
-            let df_adsb = if settings.opts.limit_parsing {
-                ((bytes[0] & 0b1111_1000) >> 3) == 17
-            } else {
-                true
-            };
-            if df_adsb {
-                // parse the entire DF frame
-                let frame = Frame::from_bytes(&bytes);
-                match frame {
-                    Ok(frame) => {
-                        debug!("ADS-B Frame: {frame}");
-                        let airplane_added = adsb_airplanes.action(
-                            frame,
-                            (settings.lat, settings.long),
-                            settings.opts.max_range,
+        // Handle message processing based on mode
+        if let Some(ref mut parser) = beast_parser {
+            // BEAST mode processing - use raw stream for binary data
+            let mut stream_ref = tcp_reader.get_mut();
+            match parser.parse_frames(&mut stream_ref) {
+                Ok(frames) => {
+                    // Note: frames can be empty if there's incomplete data, which is normal
+                    
+                    for beast_frame in frames {
+                        let bytes = beast_frame.message_bytes();
+                        
+                        // Log BEAST frame metadata for debugging
+                        trace!("BEAST frame: type={:?}, timestamp={}ms, signal={}, bytes={}",
+                            beast_frame.frame_type,
+                            beast_frame.timestamp_ms(),
+                            beast_frame.signal_level,
+                            bytes.len()
                         );
-                        // update stats
-                        stats.update(&adsb_airplanes, airplane_added);
+                        
+                        // Apply same filtering logic
+                        let df_adsb = if settings.opts.limit_parsing {
+                            !bytes.is_empty() && ((bytes[0] & 0b1111_1000) >> 3) == 17
+                        } else {
+                            true
+                        };
+                        
+                        if df_adsb {
+                            let frame = Frame::from_bytes(bytes);
+                            match frame {
+                                Ok(frame) => {
+                                    debug!("ADS-B Frame (BEAST): {frame}");
+                                    // track this message for rate calculation
+                                    stats.track_message();
+                                    let airplane_added = adsb_airplanes.action(
+                                        frame,
+                                        (settings.lat, settings.long),
+                                        settings.opts.max_range,
+                                    );
+                                    // update stats
+                                    stats.update(&adsb_airplanes, airplane_added);
+                                }
+                                Err(e) => error!("BEAST frame decode error: {e:?}"),
+                            }
+                        }
                     }
-                    Err(e) => error!("{e:?}"),
+                }
+                Err(e) => {
+                    error!("BEAST parser error: {e:?}");
+                    settings.quit = Some(QuitReason::TcpDisconnect);
+                    continue;
+                }
+            }
+        } else {
+            // Raw mode processing (original logic)
+            if let Ok(len) = tcp_reader.read_line(&mut input) {
+                // a length of 0 would indicate a broken pipe/input, quit program
+                if len == 0 {
+                    settings.quit = Some(QuitReason::TcpDisconnect);
+                    continue;
+                }
+
+                // convert from string hex -> bytes
+                let hex = &mut input.to_string()[1..len - 2].to_string();
+                debug!("bytes: {hex}");
+                let bytes = if let Ok(bytes) = hex::decode(hex) {
+                    bytes
+                } else {
+                    continue;
+                };
+
+                // check for all 0's
+                if bytes.iter().all(|&b| b == 0) {
+                    continue;
+                }
+
+                // decode
+                // first check if the option is selected that limits the parsing by first checking the
+                // first 5 bits if they are the known adsb header DF field
+                let df_adsb = if settings.opts.limit_parsing {
+                    ((bytes[0] & 0b1111_1000) >> 3) == 17
+                } else {
+                    true
+                };
+                if df_adsb {
+                    // parse the entire DF frame
+                    let frame = Frame::from_bytes(&bytes);
+                    match frame {
+                        Ok(frame) => {
+                            debug!("ADS-B Frame: {frame}");
+                            // track this message for rate calculation
+                            stats.track_message();
+                            let airplane_added = adsb_airplanes.action(
+                                frame,
+                                (settings.lat, settings.long),
+                                settings.opts.max_range,
+                            );
+                            // update stats
+                            stats.update(&adsb_airplanes, airplane_added);
+                        }
+                        Err(e) => error!("{e:?}"),
+                    }
                 }
             }
         }
@@ -409,6 +506,9 @@ fn main() -> Result<()> {
 
         // remove airplanes that timed-out
         adsb_airplanes.prune(filter_time);
+
+        // update message rate calculation (every 500ms)
+        stats.update_message_rate();
 
         // draw crossterm tui display
         let tui_info = draw(
@@ -523,7 +623,12 @@ fn init_tcp_reader(
 
         // try and connect to initial dump1090 instance
         if let Ok(stream) = TcpStream::connect_timeout(&socket, Duration::from_secs(10)) {
-            stream.set_read_timeout(Some(std::time::Duration::from_millis(50))).unwrap();
+            let timeout = if settings.opts.beast_mode { 
+                std::time::Duration::from_millis(1000)
+            } else { 
+                std::time::Duration::from_millis(50)
+            };
+            stream.set_read_timeout(Some(timeout)).unwrap();
             return Ok(Some(BufReader::new(stream)));
         }
     }

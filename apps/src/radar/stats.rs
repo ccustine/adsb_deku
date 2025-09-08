@@ -1,4 +1,5 @@
-use std::time::SystemTime;
+use std::collections::VecDeque;
+use std::time::{Duration, SystemTime};
 
 use adsb_deku::ICAO;
 use ratatui::layout::{Constraint, Rect};
@@ -9,14 +10,65 @@ use tracing::info;
 
 use crate::{Settings, DEFAULT_PRECISION};
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Stats {
     most_distance: Option<(SystemTime, ICAO, AirplaneCoor)>,
     most_airplanes: Option<(SystemTime, u32)>,
     total_airplanes: u32,
+    message_timestamps: VecDeque<SystemTime>,
+    messages_per_second: f64,
+    last_rate_update: SystemTime,
+}
+
+impl Default for Stats {
+    fn default() -> Self {
+        Self {
+            most_distance: None,
+            most_airplanes: None,
+            total_airplanes: 0,
+            message_timestamps: VecDeque::new(),
+            messages_per_second: 0.0,
+            last_rate_update: SystemTime::now(),
+        }
+    }
 }
 
 impl Stats {
+    pub fn track_message(&mut self) {
+        let now = SystemTime::now();
+        self.message_timestamps.push_back(now);
+
+        // Remove timestamps older than 60 seconds to keep a rolling window
+        let sixty_seconds_ago = now - Duration::from_secs(60);
+        while let Some(&front_time) = self.message_timestamps.front() {
+            if front_time < sixty_seconds_ago {
+                self.message_timestamps.pop_front();
+            } else {
+                break;
+            }
+        }
+    }
+
+    pub fn update_message_rate(&mut self) {
+        let now = SystemTime::now();
+
+        // Update rate every 500ms or if this is the first time
+        if self.last_rate_update.elapsed().unwrap_or(Duration::from_secs(1))
+            >= Duration::from_millis(500)
+        {
+            // Count messages in the last second
+            let one_second_ago = now - Duration::from_secs(1);
+            let recent_messages = self
+                .message_timestamps
+                .iter()
+                .filter(|&&timestamp| timestamp >= one_second_ago)
+                .count();
+
+            self.messages_per_second = recent_messages as f64;
+            self.last_rate_update = now;
+        }
+    }
+
     pub fn update(&mut self, airplanes: &Airplanes, airplane_added: Added) {
         // Update most_distance
         let current_distance = self.most_distance.map_or(0.0, |most_distance| {
@@ -90,6 +142,10 @@ pub fn build_tab_stats(
     // Total Airplanes Tracked
     let total_airplanes_s = stats.total_airplanes.to_string();
     rows.push(Row::new(vec!["Total Airplanes", "All Time", &total_airplanes_s]));
+
+    // Messages per second
+    let messages_per_sec_s = format!("{:.1}", stats.messages_per_second);
+    rows.push(Row::new(vec!["Messages/Sec", "Live", &messages_per_sec_s]));
 
     // draw table
     let widths = &[Constraint::Length(16), Constraint::Length(15), Constraint::Length(200)];

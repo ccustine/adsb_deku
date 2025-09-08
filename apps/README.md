@@ -35,6 +35,18 @@ Options:
   -V, --version                                  Print version information
 ```
 
+### Usage Examples
+```bash
+# Standard radar with raw mode (connects to port 30002)
+cargo run --bin radar --release -- --lat="40.7128" --long="-74.0060"
+
+# Radar with BEAST mode (connects to port 30005)
+cargo run --bin radar --release -- --lat="40.7128" --long="-74.0060" --beast-mode
+
+# Custom port (override default port selection)
+cargo run --bin radar --release -- --lat="40.7128" --long="-74.0060" --port 12345
+```
+
 ### Logging
 `radar` is enabled with logging. Use the `RUST_LOG=?` environment variable to control trace level and `--log-folder` to control log base folder location.
 
@@ -102,6 +114,18 @@ Options:
       --debug          Display debug of adsb::Frame
   -h, --help           Print help information
   -V, --version        Print version information
+```
+
+### Usage Examples
+```bash
+# Standard 1090 with raw mode (connects to port 30002)
+cargo run --bin 1090 --release -- --debug
+
+# 1090 with BEAST mode (connects to port 30005)
+cargo run --bin 1090 --release -- --beast-mode --debug
+
+# Connect to custom host and port
+cargo run --bin 1090 --release -- --host 192.168.1.100 --port 30005 --beast-mode
 ```
 
 ## Contributing

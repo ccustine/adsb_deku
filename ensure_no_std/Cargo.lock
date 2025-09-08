@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "adsb_deku"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "deku",
  "libm",
@@ -228,7 +228,7 @@ dependencies = [
 
 [[package]]
 name = "rsadsb_common"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "adsb_deku",
  "libm",

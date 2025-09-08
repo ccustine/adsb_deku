@@ -56,8 +56,10 @@ pub struct Opts {
     pub host: Ipv4Addr,
 
     /// port of ADS-B server / demodulator
-    #[arg(long, default_value = "30002")]
-    pub port: u16,
+    /// 
+    /// Default: 30002 for raw mode, 30005 for BEAST mode
+    #[arg(long)]
+    pub port: Option<u16>,
 
     /// Antenna location latitude, this use for aircraft position algorithms.
     ///
@@ -150,6 +152,57 @@ pub struct Opts {
     /// Disable display of range circles on Map and Coverage
     #[arg(long)]
     pub disable_range_circles: bool,
+
+    /// Use BEAST mode binary format instead of raw hex format
+    /// 
+    /// BEAST mode provides additional metadata like timestamps and signal strength.
+    /// When enabled, connects to port 30005 by default instead of 30002.
+    #[arg(long)]
+    pub beast_mode: bool,
+}
+
+impl Opts {
+    /// Get the appropriate port based on mode and user input
+    pub fn get_port(&self) -> u16 {
+        self.port.unwrap_or({
+            if self.beast_mode {
+                30005  // BEAST mode default port
+            } else {
+                30002  // Raw mode default port
+            }
+        })
+    }
+}
+
+impl Default for Opts {
+    fn default() -> Self {
+        Self {
+            host: Ipv4Addr::LOCALHOST,
+            port: None,
+            lat: 0.0,
+            long: 0.0,
+            locations: vec![],
+            disable_lat_long: false,
+            disable_callsign: false,
+            disable_icao: false,
+            disable_heading: false,
+            disable_track: false,
+            scale: 0.12,
+            gpsd: false,
+            gpsd_ip: "localhost".to_string(),
+            filter_time: 120,
+            log_folder: "logs".to_string(),
+            touchscreen: false,
+            limit_parsing: false,
+            airports: None,
+            airports_tz_filter: None,
+            retry_tcp: false,
+            max_range: 500.0,
+            range_circles: RangeCircles(vec![100.0, 200.0, 300.0, 400.0]),
+            disable_range_circles: false,
+            beast_mode: false,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -162,7 +215,7 @@ mod tests {
         let opt = Opts::try_parse_from(t_str).unwrap();
         let exp_opt = Opts {
             host: Ipv4Addr::LOCALHOST,
-            port: 30002,
+            port: None,
             lat: 35.0,
             long: -80.0,
             locations: vec![],
@@ -184,6 +237,7 @@ mod tests {
             max_range: 500.0,
             range_circles: RangeCircles(vec![100.0, 200.0, 300.0, 400.0]),
             disable_range_circles: false,
+            beast_mode: false,
         };
         assert_eq!(exp_opt, opt);
 
@@ -198,7 +252,7 @@ mod tests {
         let opt = Opts::try_parse_from(t_str).unwrap();
         let exp_opt = Opts {
             host: Ipv4Addr::LOCALHOST,
-            port: 30002,
+            port: None,
             lat: 35.0,
             long: -80.0,
             locations: vec![
@@ -223,7 +277,35 @@ mod tests {
             max_range: 500.0,
             range_circles: RangeCircles(vec![100.0, 200.0, 300.0, 400.0]),
             disable_range_circles: false,
+            beast_mode: false,
         };
         assert_eq!(exp_opt, opt);
+    }
+
+    #[test]
+    fn test_beast_mode_port_selection() {
+        // Test default port for raw mode
+        let raw_opts = Opts {
+            beast_mode: false,
+            port: None,
+            ..Default::default()
+        };
+        assert_eq!(raw_opts.get_port(), 30002);
+
+        // Test default port for BEAST mode
+        let beast_opts = Opts {
+            beast_mode: true,
+            port: None,
+            ..Default::default()
+        };
+        assert_eq!(beast_opts.get_port(), 30005);
+
+        // Test explicit port overrides default
+        let custom_opts = Opts {
+            beast_mode: true,
+            port: Some(12345),
+            ..Default::default()
+        };
+        assert_eq!(custom_opts.get_port(), 12345);
     }
 }
