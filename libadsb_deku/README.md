@@ -100,7 +100,7 @@ This library is also fuzzed, ensuring no panic when parsing from demodulated byt
 
 ## Benchmark
 Benchmarking is done against a file containing `215606` ADS-B messages: [lax-messages.txt](tests/lax-messages.txt).
-Quick math `(215606 / 692.80)` says the average speed of decoding is `~311.21 ms` a message.
+Quick math `(692.82 / 215606)` says the average speed of decoding is `~3.21 ns` a message.
 A `~3%` speedup can be gained on some systems by using  `RUSTFLAGS="-C target-cpu=native"`
 ```text
 > cargo bench
